@@ -1,0 +1,9 @@
+
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  overflow-y: scroll;
+  scrollbar-width: none; /* Firefox */
+   /* This is the most important part! It tells the div to take up remaining space */
+}

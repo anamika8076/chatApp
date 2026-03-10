@@ -1,4 +1,4 @@
-# 💬 Talk-A-Tive — Real-Time Chat Application
+# Talk-A-Tive — Real-Time Chat Application
 
 A full-stack real-time chat application built using the MERN stack with Socket.io for live messaging and notifications.
 
@@ -6,14 +6,14 @@ A full-stack real-time chat application built using the MERN stack with Socket.i
 
 ## 🚀 Features
 
-- 🔐 User Authentication (JWT)
-- 💬 One-to-One Chat
-- 👥 Group Chat
-- 🔔 Real-time Notifications
-- ✍️ Typing Indicator
-- 📡 Socket.io Real-time Messaging
-- 🗂 Chat History Storage
-- 🎨 Responsive UI (Chakra UI)
+- User Authentication (JWT)
+- One-to-One Chat
+- Group Chat
+- Real-time Notifications
+- Typing Indicator
+- Socket.io Real-time Messaging
+- Chat History Storage
+- Responsive UI (Chakra UI)
 
 ---
 

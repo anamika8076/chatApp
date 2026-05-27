@@ -9,5 +9,9 @@ export default defineConfig({
       "/api": "http://localhost:3000",
     },
   },
+   build: {
+    outDir: 'build',    // ← change from the default “dist”
+    // other options…
+  }
 })
 

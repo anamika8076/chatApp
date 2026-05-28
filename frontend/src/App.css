@@ -3,7 +3,7 @@
 .App{
     min-height: 100vh;
     display: flex;
-    background-image: url("/Users/anamikaverma/chat_app/frontend/src/assets/image.png");
+    background-image: url("./assets/image.png");
     background-size: cover  ;
     background-position: center;
     color: black;

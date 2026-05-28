@@ -23,7 +23,7 @@ import Lottie from "react-lottie";
 import animationData from "../animations/typing.json";
 import io from "socket.io-client";
 
-const ENDPOINT = "http://localhost:3000";
+const ENDPOINT = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 var socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {

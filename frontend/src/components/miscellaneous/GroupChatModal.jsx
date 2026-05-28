@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { useToast } from '@chakra-ui/react'
 import { ChatState } from '../../Context/ChatProvider'
 import axios from 'axios'
-import UserListItem from '../userAvatar/UserListItem'
+import UserListItem from '../UserAvatar/UserListItem'
 import UserBadgeItem from '../UserAvatar/UserBadgeItem'
 
   

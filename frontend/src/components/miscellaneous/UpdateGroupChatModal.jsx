@@ -6,7 +6,7 @@ import { ChatState } from '../../Context/ChatProvider'
 import { useState } from 'react'
 import UserBadgeItem from '../UserAvatar/UserBadgeItem'
 import axios from 'axios'
-import UserListItem from '../userAvatar/UserListItem'
+import UserListItem from '../UserAvatar/UserListItem'
 
 
 

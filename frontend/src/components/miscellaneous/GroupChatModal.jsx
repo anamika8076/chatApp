@@ -2,7 +2,7 @@ import React from 'react'
 import { Box, FormControl, Input, useDisclosure } from '@chakra-ui/react'
 import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton } from '@chakra-ui/react'
 import { Button } from '@chakra-ui/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useToast } from '@chakra-ui/react'
 import { ChatState } from '../../Context/ChatProvider'
 import axios from 'axios'
@@ -18,40 +18,48 @@ const GroupChatModal = ({children}) => {
       const [search,setSearch]=useState("");
       const [searchResult,setSearchResult]=useState([]);
       const [loading,setLoading]=useState(false);
+      const [creating,setCreating]=useState(false);
       const toast=useToast();
       const {user,chats,setChats}=ChatState ()
-      const handleSearch=async(query)=>{
-        setSearch(query);
-        if(!query){
-          return;
+      useEffect(()=>{
+        const query=search.trim();
+        if(!isOpen || !query){
+          setSearchResult([]);
+          setLoading(false);
+          return undefined;
         }
-        try{
-          setLoading(true);
-          const config={
-            headers:{
-                Authorization:`Bearer ${user.token}`,
-            },
-        }
-        const {data}=await axios.get(`/api/user?search=${search}`,config)
-       
-        setLoading(false);
-        setSearchResult(data);
-         
-            
 
-      }
-        catch (error) {
-            toast({
-                title: "error occured",
-                description: "failed to load the search results",
-                status: "error",
-                duration: 5000, isClosable: true, position: "bottom-left"
-            })
-        }
-    }
+        let cancelled=false;
+        setLoading(true);
+        const timer=setTimeout(async()=>{
+          try{
+            const config={headers:{Authorization:`Bearer ${user.token}`}};
+            const {data}=await axios.get(`/api/user?search=${encodeURIComponent(query)}`,config);
+            if(!cancelled) setSearchResult(data);
+          }catch{
+            if(!cancelled){
+              setSearchResult([]);
+              toast({
+                title:"Couldn't search users",
+                description:"Please check your connection and try again.",
+                status:"error",
+                duration:4000,
+                isClosable:true,
+                position:"bottom-left",
+              });
+            }
+          }finally{
+            if(!cancelled) setLoading(false);
+          }
+        },250);
+        return ()=>{
+          cancelled=true;
+          clearTimeout(timer);
+        };
+      },[search,isOpen,user?.token,toast]);
       
       const handleGroup=(userToAdd)=>{
-        if (selectedUsers.includes(userToAdd)){
+        if (selectedUsers.some((selected)=>selected._id===userToAdd._id)){
           toast({
             title: "user already added",
             status: "warning",
@@ -65,37 +73,49 @@ const GroupChatModal = ({children}) => {
         setSelectedUsers(selectedUsers.filter((sel)=>sel._id!==delUser._id))
       }
       const handleSubmit=async()=>{
-        if (!groupChatName || !selectedUsers){
+        if (!groupChatName?.trim()){
           toast({
-            title: "please fill all the fields",
+            title: "Add a group name",
+            description: "Choose a name before creating your group.",
             status: "warning",
-            duration: 5000, isClosable: true, position: "top"
+            duration: 4000, isClosable: true, position: "top"
         })
           return;
         }
+        if (selectedUsers.length < 2){
+          toast({
+            title: "Add one more person",
+            description: "A group needs at least two people besides you. For a one-to-one chat, use Search Users.",
+            status: "warning",
+            duration: 5000, isClosable: true, position: "top"
+          });
+          return;
+        }
         try{
+            setCreating(true);
             const config={
             headers:{
                 Authorization:`Bearer ${user.token}`,
             },
         }
-        const {data}=await axios.post("/api/chat/group",{name:groupChatName,users:JSON.stringify(selectedUsers.map((u)=>u._id))},config)
-        setChats([data,...chats])
+        const {data}=await axios.post("/api/chat/group",{name:groupChatName.trim(),users:JSON.stringify(selectedUsers.map((u)=>u._id))},config)
+        setChats((current)=>[data,...current.filter((chat)=>chat._id!==data._id)])
         onClose();
         toast({
           title: "new group chat created",
           status: "success",
           duration: 5000, isClosable: true, position: "bottom-left"
       })
-      console.log(data);
         }
         catch(error){
           toast({
-            title: "error creating group chat",
-            description: error.message,
+            title: "Couldn't create the group",
+            description: error.response?.data?.message || "Please check the group details and try again.",
             status: "error",
             duration: 5000, isClosable: true, position: "bottom-left"
         })
+        }finally{
+          setCreating(false);
         }
     
       }
@@ -110,10 +130,10 @@ const GroupChatModal = ({children}) => {
           <ModalCloseButton />
           <ModalBody d="flex" flexDir="column" alignItems="center"  >
           <FormControl>
-            <Input placeholder=' Chat Name' mb={3} onChange={(e)=>setGroupChatName(e.target.value)}/>
+            <Input placeholder='Group name' mb={3} value={groupChatName || ""} onChange={(e)=>setGroupChatName(e.target.value)}/>
           </FormControl>
           <FormControl>
-            <Input placeholder=' Add Users' mb={1} onChange={(e)=>handleSearch(e.target.value)}/>
+            <Input placeholder='Add people (type a name or email)' mb={1} value={search} onChange={(e)=>setSearch(e.target.value)}/>
           </FormControl>
           <Box fontSize="35px"
             fontFamily="Work sans"
@@ -130,12 +150,15 @@ const GroupChatModal = ({children}) => {
             searchResult?.slice(0,4).map((user)=><UserListItem key={user._id} user={user} handleFunction={()=>handleGroup(user)}/>)
           )
           }
+          {!loading && search.trim() && !searchResult.length && (
+            <Box color="gray.500" py={3}>No users found. Try another name or email.</Box>
+          )}
             
           </ModalBody>
 
           <ModalFooter>
-            <Button colorScheme='blue' onClick={handleSubmit}>
-              create chat
+            <Button colorScheme='blue' onClick={handleSubmit} isLoading={creating} loadingText="Creating">
+              Create group
             </Button>
             
           </ModalFooter>

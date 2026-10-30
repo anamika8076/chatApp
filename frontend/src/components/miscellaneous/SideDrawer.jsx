@@ -1,6 +1,6 @@
 import { Box, Button, Tooltip, Text, Menu, MenuButton, Avatar, MenuList, MenuItem, MenuDivider, Drawer, useDisclosure, DrawerOverlay, DrawerContent, DrawerHeader, DrawerBody, Input, HStack, useToast, Spinner } from '@chakra-ui/react';
 import React, { Profiler } from 'react'
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BellIcon, ChevronDownIcon } from '@chakra-ui/icons';
 import { ChatState } from '../../Context/ChatProvider';
 import ProfileModel from './ProfileModel';
@@ -30,37 +30,43 @@ const SideDrawer = () => {
         history.push("/")
     }
     const Toast = useToast();
-    const handleSearch = async () => {
-        if (!search) {
-            Toast({
-                title: "please enter something in search",
-                status: "warning",
-                duration: 5000, isClosable: true, position: "top-left"
-            })
-            return
-        }
-        try {
-            setLoading(true);
-            const config = {
-                headers: {
-                    Authorization: `Bearer ${user.token}`,
-                },
-            }
-            const { data } = await axios.get(`/api/user?search=${search}`, config)
+    useEffect(() => {
+        const query = search.trim();
+        if (!isOpen || !query) {
+            setSearchResult([]);
             setLoading(false);
-            setSearchResult(data);
-        }
-        catch (error) {
-            Toast({
-                title: "error occured",
-                description: "failed to load search results",
-                status: "error",
-                duration: 5000, isClosable: true, position: "bottom-left"
-            })
-
+            return undefined;
         }
 
-    }
+        let cancelled = false;
+        setLoading(true);
+        const timer = setTimeout(async () => {
+            try {
+                const config = { headers: { Authorization: `Bearer ${user.token}` } };
+                const { data } = await axios.get(`/api/user?search=${encodeURIComponent(query)}`, config);
+                if (!cancelled) setSearchResult(data);
+            } catch {
+                if (!cancelled) {
+                    setSearchResult([]);
+                    Toast({
+                        title: "Couldn't search users",
+                        description: "Please check your connection and try again.",
+                        status: "error",
+                        duration: 4000,
+                        isClosable: true,
+                        position: "bottom-left",
+                    });
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        }, 250);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [search, isOpen, user?.token, Toast]);
     const accessChat= async (userId)=>{
         try{
             setLoadingChat(true)
@@ -197,15 +203,11 @@ const SideDrawer = () => {
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
                                     />
-                                    <Button onClick={handleSearch}>
-                                        Go
-                                    </Button>
                                 </HStack>
                             </Box>
-                            {loading ?
-                                <ChatLoading />
-
-                                : (
+                            {loading ? <ChatLoading /> : search.trim() && !searchResult.length ? (
+                                <Text color="gray.500" px={3} py={4}>No users found. Try another name or email.</Text>
+                            ) : (
                                     searchResult?.map(user => (
                                         <UserListItem
                                             key={user._id}

@@ -73,17 +73,26 @@ const fetchChats = async (req, res) => {
     }
 }
 const createGroupChat = async (req, res) => {
-    if (!req.body.users || !req.body.name) {
-        return res.status(400).send({ message: "Please fill all the fields" })
+    if (!req.body.users || !req.body.name?.trim()) {
+        return res.status(400).send({ message: "Add a group name and choose people to invite." })
     }
-    var users = JSON.parse(req.body.users)
+    let users;
+    try {
+        users = Array.isArray(req.body.users) ? req.body.users : JSON.parse(req.body.users);
+    } catch {
+        return res.status(400).send({ message: "The selected people could not be read. Please select them again." });
+    }
+    if (!Array.isArray(users)) {
+        return res.status(400).send({ message: "Please choose people from the search results." });
+    }
+    users = [...new Set(users.map(String).filter((id) => id !== req.user._id.toString()))];
     if (users.length < 2) {
-        return res.status(400).send({ message: "More than 2 users are required to form a group chat" })
+        return res.status(400).send({ message: "A group needs at least two people besides you. For a one-to-one chat, use Search Users." });
     }
-    users.push(req.user)
+    users.push(req.user._id)
     try {
         const groupChat = await Chat.create({
-            chatname: req.body.name,
+            chatname: req.body.name.trim(),
             users: users,
             isgroupchat:true,
             groupAdmin: req.user

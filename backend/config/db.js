@@ -5,8 +5,10 @@ const connectDB = async () => {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("✅ MongoDB connected");
   } catch (error) {
-    console.error("❌ DB connection failed", error);
-    process.exit(1);
+    // Keep the HTTP server alive so the host can detect the open port and
+    // expose the health endpoint while the database configuration is fixed.
+    console.error("❌ DB connection failed:", error.message);
+    return false;
   }
 };
 

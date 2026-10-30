@@ -8,11 +8,12 @@ const accessChats = async (req, res) => {
         return res.sendStatus(400)
     }
 var isChat = await Chat.find({
-  isGroupChat: false,
+  isgroupchat: false,
   users: {
     $all: [req.user._id, userId],
+    $size: 2,
   },
-})
+}).sort({ updatedAt: -1 })
   .populate("users", "-password")
   .populate("latestMessage");
     isChat = await User.populate(isChat, {
@@ -24,8 +25,8 @@ var isChat = await Chat.find({
         res.send(isChat[0])
     } else {
         var chatData = {
-            chatName: "sender",
-            isGroupChat: false,
+            chatname: "sender",
+            isgroupchat: false,
             users: [req.user._id, userId]
         }
         try {
@@ -43,19 +44,27 @@ var isChat = await Chat.find({
 
 const fetchChats = async (req, res) => {
     try {
-        Chat.find({ users: { $elemMatch: { $eq: req.user._id } } })
+        const chats = await Chat.find({ users: { $elemMatch: { $eq: req.user._id } } })
             .populate("users", "-password")
             .populate("groupAdmin", "-password   ")
             .populate("latestMessage")
-            .sort({ updatedAt: -1 })
-            .then(async (results) => {
-                results = await User.populate(results, {
-                    path: "latestMessage.sender",
-                    select: "name pic email"
-                })
-                res.status(200).send(results)
-              
-            })
+            .sort({ updatedAt: -1 });
+        const results = await User.populate(chats, {
+            path: "latestMessage.sender",
+            select: "name pic email"
+        });
+
+        // Older deployments may already contain duplicate one-to-one chats.
+        // Return only the most recently updated chat for each user pair.
+        const seenDirectChats = new Set();
+        const uniqueResults = results.filter((chat) => {
+            if (chat.isgroupchat) return true;
+            const pairKey = chat.users.map((user) => user._id.toString()).sort().join(":");
+            if (seenDirectChats.has(pairKey)) return false;
+            seenDirectChats.add(pairKey);
+            return true;
+        });
+        res.status(200).send(uniqueResults);
     }
     catch (error) {
         res.status(400)

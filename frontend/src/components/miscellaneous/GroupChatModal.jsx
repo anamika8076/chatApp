@@ -157,7 +157,7 @@ const GroupChatModal = ({children}) => {
           </ModalBody>
 
           <ModalFooter>
-            <Button colorScheme='blue' onClick={handleSubmit} isLoading={creating} loadingText="Creating">
+            <Button colorScheme='purple' onClick={handleSubmit} isLoading={creating} loadingText="Creating">
               Create group
             </Button>
             

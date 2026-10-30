@@ -23,8 +23,16 @@ const sendMessage=async(req,res)=>{
             path:"chat.users",
             select:"name pic email"
         })
+        const unreadIncrements = {};
+        message.chat.users.forEach((member) => {
+            const memberId = member._id.toString();
+            if (memberId !== req.user._id.toString()) {
+                unreadIncrements[`unreadCounts.${memberId}`] = 1;
+            }
+        });
         await Chat.findByIdAndUpdate(req.body.chatId,{
-            latestMessage:message,
+            $set: { latestMessage: message._id },
+            $inc: unreadIncrements,
         })
         res.json(message)
         
@@ -39,6 +47,11 @@ const allMessages=async(req,res)=>{
         .populate("sender","name pic email")
         .populate("chat")
 
+        await Chat.findOneAndUpdate(
+            { _id: req.params.chatId, users: req.user._id },
+            { $set: { [`unreadCounts.${req.user._id.toString()}`]: 0 } }
+        );
+
         res.json(messages)
         
     } catch (error) {
@@ -47,4 +60,17 @@ const allMessages=async(req,res)=>{
         
     }
 }
-module.exports={sendMessage,allMessages}
+const markChatRead=async(req,res)=>{
+    try {
+        const chat=await Chat.findOneAndUpdate(
+            { _id: req.params.chatId, users: req.user._id },
+            { $set: { [`unreadCounts.${req.user._id.toString()}`]: 0 } },
+            { new: true }
+        );
+        if (!chat) return res.status(404).json({message:"Chat not found."});
+        return res.json({success:true});
+    } catch (error) {
+        return res.status(400).json({message:error.message});
+    }
+}
+module.exports={sendMessage,allMessages,markChatRead}

@@ -57,7 +57,9 @@ const Login = () => {
               catch(error){
                   toast({
                       title: "error occured",
-                      description:error.response?.data?.message || "Unable to log in. Please try again.",
+                      description:error.response?.data?.message || (error.request
+                        ? "Can't reach the chat server. Check that VITE_BACKEND_URL points to your Render service."
+                        : "Unable to log in. Please try again."),
                       status: "error",
                       duration: 5000, isClosable: true, position: "bottom"
                   })
@@ -100,7 +102,7 @@ const Login = () => {
   
       </FormControl>
       
-      <Button colorScheme={"blue"} width="100%" style={{marginTop:15}} onClick={submitHandler} isLoading={loading}>
+      <Button colorScheme={"purple"} width="100%" style={{marginTop:15}} onClick={submitHandler} isLoading={loading}>
           Login
       </Button>
       <Button variant="solid" colorScheme={"red"} width="100%" onClick={()=>{

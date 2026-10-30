@@ -30,6 +30,15 @@ const SideDrawer = () => {
         history.push("/")
     }
     const Toast = useToast();
+    const unreadChats = chats.filter((chat) => Number(
+        chat.unreadCounts?.[user?._id] ?? chat.unreadCounts?.get?.(user?._id) ?? 0
+    ) > 0);
+    const unreadCount = Math.max(
+        unreadChats.reduce((total, chat) => total + Number(
+            chat.unreadCounts?.[user?._id] ?? chat.unreadCounts?.get?.(user?._id) ?? 0
+        ), 0),
+        notifications.length
+    );
     useEffect(() => {
         const query = search.trim();
         if (!isOpen || !query) {
@@ -109,6 +118,7 @@ const SideDrawer = () => {
 
     return (
         <Box
+            className="chat-topbar"
             display="flex"
             alignItems="center"
             bg="white"
@@ -120,7 +130,7 @@ const SideDrawer = () => {
 
             {/* LEFT */}
             <Tooltip label="search user to chat" hasArrow placement="bottom-end">
-                <Button variant="ghost" onClick={onOpen}>
+                <Button className="chat-search-trigger" variant="ghost" onClick={onOpen}>
                     <i className="fa-solid fa-magnifying-glass"></i>
                     <Text display={{ base: "none", md: "flex" }} px={4}>
                         search user
@@ -131,6 +141,7 @@ const SideDrawer = () => {
             {/* CENTER */}
             <Text
                 fontSize="2xl"
+                fontWeight="700"
                 fontFamily="Work sans"
                 position="absolute"
                 left="50%"
@@ -142,27 +153,39 @@ const SideDrawer = () => {
             {/* RIGHT */}
             <Box ml="auto" display="flex" alignItems="center" gap={3}>
                 <Menu>
-                    <MenuButton p={1}>
+                    <MenuButton className="chat-notifications-trigger" p={1}>
                     <Badge
   colorScheme="red"
   borderRadius="full"
   px="2"
 >
-  {notifications.length}
+  {unreadCount}
 </Badge>
                         <BellIcon fontSize="2xl" />
                     </MenuButton>
                     <MenuList pl={2}>
-                        {!notifications.length && "No new messages"}
-                        {notifications.map((notif) => (
-                            <MenuItem key={notif._id} onClick={()=>{
-                                setSelectedChat(notif.chat)
-                                setNotifications((current)=>current.filter((n)=>n.chat?._id!==notif.chat?._id))
+                        {!unreadChats.length && !notifications.length && "No new messages"}
+                        {unreadChats.map((chat) => {
+                            const count = Number(chat.unreadCounts?.[user?._id] ?? chat.unreadCounts?.get?.(user?._id) ?? 0);
+                            return (
+                                <MenuItem key={chat._id} onClick={() => {
+                                    setSelectedChat(chat);
+                                    setNotifications((current) => current.filter((message) => message.chat?._id !== chat._id));
+                                }}>
+                                    {chat.isgroupchat
+                                      ? `${chat.chatname} · ${count} new ${count === 1 ? "message" : "messages"}`
+                                      : `${getSender(user, chat.users)} · ${count} new ${count === 1 ? "message" : "messages"}`}
+                                </MenuItem>
+                            );
+                        })}
+                        {!unreadChats.length && notifications.map((notification) => (
+                            <MenuItem key={notification._id} onClick={() => {
+                                setSelectedChat(notification.chat);
+                                setNotifications((current) => current.filter((message) => message.chat?._id !== notification.chat?._id));
                             }}>
-                            {notif.chat.isgroupchat
-                            ? `New message in ${notif.chat.chatname}`
-                            : `New message from ${getSender(user, notif.chat.users)}`}
-
+                                {notification.chat?.isgroupchat
+                                  ? `New message in ${notification.chat.chatname}`
+                                  : `New message from ${getSender(user, notification.chat.users)}`}
                             </MenuItem>
                         ))}
                     </MenuList>

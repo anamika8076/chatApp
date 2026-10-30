@@ -100,6 +100,12 @@ const createGroupChat = async (req, res) => {
         const fullGroupChat = await Chat.findOne({ _id: groupChat._id })
             .populate("users", "-password")
             .populate("groupAdmin", "-password")
+        const io = req.app.get("io");
+        fullGroupChat.users.forEach((member) => {
+            io?.to(member._id.toString()).emit("group created", {
+                chatId: fullGroupChat._id.toString(),
+            });
+        });
         res.status(200).send(fullGroupChat)
     }
     catch (error) {

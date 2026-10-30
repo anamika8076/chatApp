@@ -23,7 +23,7 @@ import Lottie from "react-lottie";
 import animationData from "../animations/typing.json";
 import io from "socket.io-client";
 
-const ENDPOINT = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+const ENDPOINT = import.meta.env.VITE_BACKEND_URL?.trim() || window.location.origin;
 
 const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
   const { user, selectedChat, setSelectedChat, setNotifications } = ChatState();
@@ -61,6 +61,9 @@ const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
       if (selectedChatRef.current?._id) socket.emit("join chat", selectedChatRef.current._id);
     });
     socket.on("connected", () => setSocketConnected(true));
+    socket.on("group created", () => {
+      setFetchAgain((current) => !current);
+    });
     socket.on("typing", () => setIsTyping(true));
     socket.on("stop typing", () => setIsTyping(false));
     socket.on("message recieved", (incomingMessage) => {
@@ -69,6 +72,11 @@ const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
         setMessages((current) => current.some((message) => message._id === incomingMessage._id)
           ? current
           : [...current, incomingMessage]);
+        axios.put(`/api/message/${incomingMessage.chat._id}/read`, {}, {
+          headers: { Authorization: `Bearer ${user.token}` },
+        }).then(() => setFetchAgain((current) => !current)).catch((error) => {
+          console.error("Could not mark chat as read:", error.message);
+        });
       } else {
         setNotifications((current) => current.some((message) => message._id === incomingMessage._id)
           ? current
@@ -106,6 +114,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
       );
 
       setMessages(data);
+      setFetchAgain((current) => !current);
       socketRef.current?.emit("join chat", selectedChat._id);
     } catch (error) {
       toast({
@@ -183,6 +192,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
       {selectedChat ? (
         <>
           <Text
+            className="chat-header"
             fontSize={{ base: "28px", md: "30px" }}
             fontFamily="Work sans"
             pb={3}
@@ -218,6 +228,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
               ))}
           </Text>
           <Box
+            className="chat-conversation"
             display="flex"
             flexDir="column"
             justifyContent="flex-end"
@@ -251,6 +262,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
                 />
             </div> : <></>}
               <Input
+                className="chat-composer"
                 variant="filled"
                 bg="#E0E0E0"
                 placeholder="Enter a message..."

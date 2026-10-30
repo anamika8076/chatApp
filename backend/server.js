@@ -45,6 +45,7 @@ const io = require("socket.io")(server, {
     credentials: true
   }
 });
+app.set("io", io);
 
 io.on("connection", (socket) => {
   socket.on("setup", (userData) => {

@@ -16,7 +16,7 @@ const ScrollableChat = ({messages}) => {
     console.log("Logged user:", user._id);
     return(
     
-    <div style={{
+    <div className={`message-line ${m.sender._id === user._id ? "message-line-outgoing" : "message-line-incoming"}`} style={{
     display: "flex",
     justifyContent:
       m.sender._id === user._id
@@ -45,16 +45,8 @@ const ScrollableChat = ({messages}) => {
     </Tooltip>
     )}
     <span
-    style={{
-        backgroundColor:`${
-        m.sender._id===user._id ? " #BEE3F8" : "#B9F5D0"}`,
-        borderRadius:"20px",
-        padding:"5px 15px",
-        maxWidth:"75%",
-        marginLeft:isSameSenderMargin(messages,m,i,user._id  ),
-        marginTop:isSameSender(messages,m,i,user._id) ? 3 : 10,
-
-    }}>
+    className={`message-bubble ${m.sender._id === user._id ? "message-bubble-outgoing" : "message-bubble-incoming"}`}
+    style={{ marginLeft:isSameSenderMargin(messages,m,i,user._id) }}>
         {m.content}
     </span>
 

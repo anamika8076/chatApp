@@ -76,11 +76,12 @@ const SignUp = () => {
         }
         if (password !== confirmPassword){
             toast({
-                title: "password do not match",
+                title: "Passwords don't match",
+                description: "Please enter the same password in both fields.",
                 status: "warning",
                 duration: 5000, isClosable: true, position: "bottom"
             })
-             
+            setLoading(false);
             return;
         
 
@@ -109,7 +110,9 @@ const SignUp = () => {
         catch(error){
             toast({
                 title: "error occured",
-                description:error.response?.data?.message || "Unable to sign up. Please try again.",
+                description:error.response?.data?.message || (error.request
+                    ? "Can't reach the chat server. Check that VITE_BACKEND_URL points to your Render service."
+                    : "Unable to sign up. Please try again."),
                 status: "error",
                 duration: 5000, isClosable: true, position: "bottom"
             })
@@ -185,7 +188,7 @@ const SignUp = () => {
                     />
 
                 </FormControl>
-                <Button colorScheme={"blue"} width="100%" style={{ marginTop: 15 }} onClick={submitHandler} isLoading={loading}>
+                <Button colorScheme={"purple"} width="100%" style={{ marginTop: 15 }} onClick={submitHandler} isLoading={loading}>
                     Sign Up
                 </Button>
 

@@ -12,7 +12,7 @@ import { ArrowBackIcon } from "@chakra-ui/icons";
 import { getSender, getSenderFull } from "./config/ChatLogics";
 import ProfileModel from "./miscellaneous/ProfileModel";
 import UpdateGroupChatModal from "./miscellaneous/UpdateGroupChatModal";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import axios from "axios";
 import { useToast } from "@chakra-ui/react";
 import { useEffect } from "react";
@@ -24,10 +24,12 @@ import animationData from "../animations/typing.json";
 import io from "socket.io-client";
 
 const ENDPOINT = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
-var socket, selectedChatCompare;
 
 const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
-  const { user, selectedChat, setSelectedChat, notifications, setNotifications } = ChatState();
+  const { user, selectedChat, setSelectedChat, setNotifications } = ChatState();
+  const socketRef = useRef(null);
+  const selectedChatRef = useRef(selectedChat);
+  selectedChatRef.current = selectedChat;
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [newMessage, setNewMessage] = useState("");
@@ -46,41 +48,44 @@ const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
   }
 
   useEffect(() => {
-    socket = io(ENDPOINT, { 
-  transports: ["websocket", "polling"],
-  reconnection: true,
-  reconnectionAttempts: 5,
-  reconnectionDelay: 1000
-});
-    socket.emit("setup", user);
+    if (!user?._id) return undefined;
+    const socket = io(ENDPOINT, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+    socketRef.current = socket;
+    socket.on("connect", () => {
+      socket.emit("setup", user);
+      if (selectedChatRef.current?._id) socket.emit("join chat", selectedChatRef.current._id);
+    });
     socket.on("connected", () => setSocketConnected(true));
     socket.on("typing", () => setIsTyping(true));
     socket.on("stop typing", () => setIsTyping(false));
-
-  }, []);
- 
-
-  useEffect(() => {
-    socket.on("message recieved", (newMessageRecieved) => {
-      if (
-        !selectedChatCompare ||
-        selectedChatCompare._id !== newMessageRecieved.chat._id
-      ) {
-
-        // give notification
-        if (!notifications.includes(newMessageRecieved)) {
-          setNotifications([newMessageRecieved, ...notifications]);
-          setFetchAgain(!fetchAgain);
-        }
+    socket.on("message recieved", (incomingMessage) => {
+      setFetchAgain((current) => !current);
+      if (selectedChatRef.current?._id === incomingMessage.chat?._id) {
+        setMessages((current) => current.some((message) => message._id === incomingMessage._id)
+          ? current
+          : [...current, incomingMessage]);
       } else {
-        setMessages([...messages, newMessageRecieved]);
+        setNotifications((current) => current.some((message) => message._id === incomingMessage._id)
+          ? current
+          : [incomingMessage, ...current]);
       }
     });
-  });
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [user?._id, setFetchAgain, setNotifications]);
+
   useEffect(() => {
+    if (!selectedChat) return;
+    setNotifications((current) => current.filter((message) => message.chat?._id !== selectedChat._id));
     fetchMesssages();
-    selectedChatCompare = selectedChat;
-  }, [selectedChat]);
+  }, [selectedChat?._id, user?._id]);
 
   
 
@@ -101,8 +106,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
       );
 
       setMessages(data);
-      setLoading(false);
-      socket.emit("join chat", selectedChat._id);
+      socketRef.current?.emit("join chat", selectedChat._id);
     } catch (error) {
       toast({
         title: "Error occured!",
@@ -112,12 +116,14 @@ const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
         isClosable: true,
         position: "bottom",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const sendMessage = async (event) => {
     if (event.key === "Enter" && newMessage) {
-        socket.emit("stop typing",selectedChat._id)
+        socketRef.current?.emit("stop typing",selectedChat._id)
       try {
         const config = {
           headers: {
@@ -134,10 +140,11 @@ const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
           config,
         );
         console.log(data);
-        socket.emit("new message", data);
+        socketRef.current?.emit("new message", data);
 
         setNewMessage("");
-        setMessages([...messages, data]);
+        setMessages((current) => [...current, data]);
+        setFetchAgain((current) => !current);
       } catch (error) {
         toast({
           title: "error occured!",
@@ -156,7 +163,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
 
     if(!typing){
         setTyping(true)
-        socket.emit("typing",selectedChat._id)
+        socketRef.current?.emit("typing",selectedChat._id)
     }
     let lastTypingTime=new Date().getTime()
     var timerLength=3000
@@ -164,7 +171,7 @@ const SingleChat = ({ fetchAgain, setFetchAgain, fetchMessages }) => {
         var timeNow=new Date().getTime()
         var timeDiff=timeNow-lastTypingTime
         if(timeDiff>=timerLength && typing){
-            socket.emit("stop typing",selectedChat._id)
+            socketRef.current?.emit("stop typing",selectedChat._id)
             setTyping(false)
         }
     },timerLength)

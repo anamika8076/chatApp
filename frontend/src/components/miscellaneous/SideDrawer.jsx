@@ -18,11 +18,15 @@ const SideDrawer = () => {
     const [loading, setLoading] = useState(false);
     const [loadingChat, setLoadingChat] = useState(false);
 
-    const { user,setSelectedChat, chats,setChats, notifications, setNotifications } = ChatState()
+    const { user,setUser,setSelectedChat, chats,setChats, notifications, setNotifications } = ChatState()
     const { isOpen, onOpen, onClose } = useDisclosure()
     const history = useHistory();
     const logoutHandler = () => {
         localStorage.removeItem("userInfo");
+        setUser(null);
+        setSelectedChat(null);
+        setChats([]);
+        setNotifications([]);
         history.push("/")
     }
     const Toast = useToast();
@@ -147,7 +151,7 @@ const SideDrawer = () => {
                         {notifications.map((notif) => (
                             <MenuItem key={notif._id} onClick={()=>{
                                 setSelectedChat(notif.chat)
-                                setNotifications(notifications.filter((n)=> n!==notif))
+                                setNotifications((current)=>current.filter((n)=>n.chat?._id!==notif.chat?._id))
                             }}>
                             {notif.chat.isgroupchat
                             ? `New message in ${notif.chat.chatname}`

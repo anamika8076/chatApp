@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react'
 import { ChatState } from '../Context/ChatProvider'
-import { useState } from 'react'
-import { Box, Button, Stack, useToast ,Text} from '@chakra-ui/react'
+import { Box, Button, Stack, useToast ,Text, Badge, HStack} from '@chakra-ui/react'
 import axios from 'axios'
 import { AddIcon } from '@chakra-ui/icons'
 import ChatLoading from './ChatLoading'
@@ -11,10 +10,24 @@ import GroupChatModal from './miscellaneous/GroupChatModal'
 
 
 const MyChats = ({fetchAgain}) => {
-  const [loggedUser,setLoggedUser]=useState()
-  const {user,selectedChat,chats,setSelectedChat,setChats}=ChatState()
+  const {user,selectedChat,chats,setSelectedChat,setChats,notifications}=ChatState()
   const toast=useToast();
+  const unreadCountFor = (chat) => {
+    const memberIds = chat.users.map((member) => String(member._id || member)).sort().join(":");
+    return notifications.filter((notification) => {
+      const notificationChat = notification.chat;
+      const sameChat = String(notificationChat?._id || notificationChat) === String(chat._id);
+      if (sameChat) return true;
+      if (chat.isgroupchat || notificationChat?.isgroupchat) return false;
+      const notificationMemberIds = notificationChat?.users
+        ?.map((member) => String(member._id || member))
+        .sort()
+        .join(":");
+      return Boolean(notificationMemberIds && notificationMemberIds === memberIds);
+    }).length;
+  };
   const fetchChats=async()=>{
+    if (!user?.token) return;
     try{
       const config={
         headers:{
@@ -23,12 +36,15 @@ const MyChats = ({fetchAgain}) => {
       }
     
       const {data}=await axios.get("/api/chat",config)
-      // FILTER: Ensure every chat in the list has a unique ID
-    const uniqueChats = data.filter((v, i, a) => 
-        a.findIndex(t => (t._id === v._id)) === i
-    );
-
-    setChats(uniqueChats);
+      const seen = new Set();
+      const uniqueChats = data.filter((chat) => {
+        if (chat.isgroupchat) return true;
+        const pair = chat.users.map((member) => member._id).sort().join(":");
+        if (seen.has(pair)) return false;
+        seen.add(pair);
+        return true;
+      });
+      setChats(uniqueChats);
      
       
     }
@@ -42,9 +58,8 @@ const MyChats = ({fetchAgain}) => {
     }
   }
   useEffect(()=>{
-    setLoggedUser(JSON.parse(localStorage.getItem("userInfo")));
     fetchChats();
-  },[fetchAgain])
+  },[fetchAgain,user?.token])
   return (
     <Box
     display={{base:selectedChat? "none":"flex",md:"flex"}}
@@ -92,27 +107,37 @@ const MyChats = ({fetchAgain}) => {
       >
       {chats?(
         <Stack overflowY="scroll">
-        {chats.map((chat)=>(
+        {chats.map((chat)=>{
+          const unreadCount = unreadCountFor(chat);
+          return (
           <Box 
           onClick={()=>setSelectedChat(chat)}
           cursor="pointer"
-          bg={selectedChat===chat? "#38B2AC":"#E8E8E8"}
-          color={selectedChat===chat? "white":"black"}
+          bg={selectedChat?._id===chat._id? "#38B2AC":"#E8E8E8"}
+          color={selectedChat?._id===chat._id? "white":"black"}
           px={3}
           py={2}
           borderRadius="lg"
           key={chat._id}
           >
+          <HStack justify="space-between">
           <Text>
           {!chat.isgroupchat?(
-            getSender(loggedUser,chat.users)
+            getSender(user,chat.users)
           ):
             chat.chatname}
           </Text>
+          {unreadCount > 0 && (
+            <Badge colorScheme="red" borderRadius="full" minW="22px" textAlign="center" aria-label={`${unreadCount} unread messages`}>
+              {unreadCount}
+            </Badge>
+          )}
+          </HStack>
 
 
           </Box>
-        ))}
+          );
+        })}
 
         </Stack>
       ):(<ChatLoading/>)}

@@ -10,10 +10,17 @@ const path = require("path");
 dotenv.config();
 
 app.use(express.json());
-const allowedOrigins = (process.env.FRONTEND_URL || "https://chat-app-sand-eight-53.vercel.app")
+const configuredFrontendOrigins = (process.env.FRONTEND_URL || "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+const allowedOrigins = [...new Set([
+  "https://chat-app-sand-eight-53.vercel.app",
+  "https://chatapp-talk-a-tive.vercel.app",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  ...configuredFrontendOrigins,
+])];
 
 app.use(cors({
   origin: allowedOrigins,
